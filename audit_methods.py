@@ -6,7 +6,7 @@ from rapidfuzz import fuzz, process
 #Regex patterns to extract PO and GRN from the narration of the cleaned ledger Report that we get out of using the formatting function.
 regex_patterns = {
     "PO": r"(PO\/\d+-\d+\/\d+)",
-    "GRN": r"(?i)grn\s*(?:si)?\s*\.?\s*no\s*\.?\s*\-?\s*\:?\s*(.*?)(?=\s(?:dt|dated))",
+    "GRN": r"(?i)grn\s*(?:si)?\s*\.?\s*(?:no)?\s*\.?\s*\-?\s*\:?\s*(.*?)(?=\s*(?:dt|date)|$)",
 }
 
 #converting the files into parquet format for fastest processing
@@ -17,7 +17,6 @@ def convert_to_partquet(ledger_path:str, outPath:str):
         ledger_path (str): folder which contains the ledger reports.
         outPath (str): folder where you want the output.
     """
-    ledger_path = "Chemical/FOCUS/"
     files = os.listdir(ledger_path)
     try:
         for file in files:
@@ -55,21 +54,21 @@ def formatting(srcPath: str,outPath:str):
         if file.endswith(".parquet"):
             if "search" in file.lower():
                 df = pd.read_parquet(full_file_path, engine='pyarrow')
-                df = df.groupby(["Date","Voucher", "Account Name", "Account Code", "Narration", 'Account Pan No']).agg({"Debit": "sum", "Credit": 'sum'}).reset_index()
+                df = df.groupby(["Date","Voucher", "Account-2 Name", "Account Code", "Narration", 'Account-2 Pan No']).agg({"Debit": "sum", "Credit": 'sum'}).reset_index()
             if "statement" in file.lower():
                 #loading the statement of accounts finance format
-                df1 = pd.read_parquet("Chemical/output/Chemical & Regeants Statement of Account Finance format.parquet")
+                df1 = pd.read_parquet(full_file_path, engine='pyarrow')
                 df1 = df1[df1["Voucher"].notna()] #removing blank rows
                 df1 = df1.groupby(["Date", "Voucher", "BillNo", "Bill Date"]).agg({"Debit": 'sum', "Credit": 'sum'}).reset_index()
     df3 = pd.merge(left=df, right=df1[["Voucher", "BillNo", "Bill Date"]], how='left', on="Voucher")
     for key, value in regex_patterns.items():
         df3[key] = df3["Narration"].str.extract(value)[0]
-    df3.to_parquet(outPath+".parquet", index=False)
-    df3.to_excel(outPath+".xlsx", index=False)
+    # df3.to_parquet(outPath + "ledger_formatted.parquet", index=False)
+    # df3.to_excel(outPath+"ledger_formatted.xlsx", index=False)
     del df
     del df1
-    del df3
     gc.collect() #clearing from RAM
+    return df3
 
 def po_process(srcPath: str):
     """Processing the PO reports for further usage in Purhcase VS PO audit process
@@ -79,11 +78,11 @@ def po_process(srcPath: str):
     Returns:
         po_reports = a pandas dataframe
     """
-    files = os.listdir("Purchase Order Reports/")
+    files = os.listdir(srcPath)
     po_data = []
     for file in files:
         if not "until" in file:
-            file_path = os.path.join("Purchase Order Reports/", file)
+            file_path = os.path.join(srcPath, file)
             names = ["Date", "doc", "vendor code", "vendor name", "item name", "unit name", "Description", "Quantity", "Rate"]
             po_report = pd.read_excel(file_path, skiprows=5)
             for i in range(len(names)):
@@ -98,7 +97,7 @@ def purchase_vs_po(po_reports, formatted_ledger):
     
     Args:
         po_reports: pandas dataframe, typically the output of po_process function
-        formatted_ledger: parquet file which is the output of formatting function
+        formatted_ledger: po_reports pandas dataframe which is the output of formatting function
     """
     po_reports_unique = po_reports.drop_duplicates(subset="doc")
     purchase_vs_po = pd.merge(left=formatted_ledger, right=po_reports_unique, how="left", left_on="PO", right_on="doc", suffixes=(None, "as per PO report"))
@@ -109,7 +108,7 @@ def purchase_vs_grn(srcFilePath:str, formatted_ledger):
     
     Args:
         srcFilePath: The actual file path of xlsx file. This must be combined GRN Report of all the plants.
-        formatted_ledger: The parquet file which is the output of the formatting function.
+        formatted_ledger: pandas dataframe which is the output of formatting function.
     """
     df_grn_report = pd.read_excel(srcFilePath)
     df_grn_report.columns.values[5] = "PO"
@@ -119,14 +118,14 @@ def purchase_vs_grn(srcFilePath:str, formatted_ledger):
     purchase_vs_grn = pd.merge(left=formatted_ledger, right=df_grn_unique, how="left", on=["PO", "GRN"], suffixes=(None,"GRN_Report"))
     return purchase_vs_grn
 
-def purchase_vs_gstr2a(formatted_ledger_File, gstr2ACombinedFile, outPath:str):
-    df_invoices = pd.read_parquet(formatted_ledger_File)
+def purchase_vs_gstr2a(formatted_ledger, gstr2ACombinedFile, outPath:str):
+    # df_invoices = pd.read_parquet(formatted_ledger_File)
     df_gstr2A = pd.read_excel(gstr2ACombinedFile)
     df_gstr2A["PAN"] = df_gstr2A["GSTIN"].astype(str).str.extract(r"([A-Z]{5}[0-9]{4}[A-Z]{1})")
     
     def fuzzyMatch(row, df_gstr2A_ref):
         query = row['BillNo'] # Ensure this is a string
-        row_pan = row['Account Pan No']
+        row_pan = row['Account-2 Pan No']
         
         # 1. Filter by PAN
         df_to_look_at = df_gstr2A_ref[df_gstr2A_ref["PAN"] == row_pan]
@@ -167,8 +166,8 @@ def purchase_vs_gstr2a(formatted_ledger_File, gstr2ACombinedFile, outPath:str):
             'matched_Taxable_Value': matched_row['Taxable Value'],
         })
     
-    matched_df = df_invoices.apply(lambda row: fuzzyMatch(row, df_gstr2A),axis=1)
-    df_invoices_matched = pd.concat([df_invoices, matched_df], axis =1)
+    matched_df = formatted_ledger.apply(lambda row: fuzzyMatch(row, df_gstr2A),axis=1)
+    df_invoices_matched = pd.concat([formatted_ledger, matched_df], axis =1)
 
     #exporting the separate excel files
     df_invoices_matched[~df_invoices_matched["BillNo"].astype(str).str.contains("chemical", case=False, na=False) & df_invoices_matched["matched_gstr2a_invoice"].notna()].to_excel(outPath+"matched chemical invoices with gstr2a.xlsx", index=False)
