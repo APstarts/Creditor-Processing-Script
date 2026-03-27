@@ -1,4 +1,4 @@
-# Audit Data Pipeline: Purchase vs. GSTR-2A Reconciliation
+# Audit Data Processing and Reconciliation Pipeline
 
 This repository contains a Python-based data pipeline designed to automate the reconciliation of **Chemical/FOCUS** ledger reports against Purchase Orders (PO), Goods Received Notes (GRN), and GSTR-2A GST filings.
 
