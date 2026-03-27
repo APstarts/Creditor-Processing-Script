@@ -14,7 +14,7 @@ This repository contains a Python-based data pipeline designed to automate the r
 
 ## System Requirements
 The pipeline requires the following Python libraries:
-* `pandas`
+* `pandas`      
 * `pyarrow`
 * `os`
 * `gc`
