@@ -54,7 +54,7 @@ def formatting(srcPath: str,outPath:str):
         if file.endswith(".parquet"):
             if "search" in file.lower():
                 df = pd.read_parquet(full_file_path, engine='pyarrow')
-                df = df.groupby(["Date","Voucher", "Account-2 Name", "Account Code", "Narration", 'Account-2 Pan No']).agg({"Debit": "sum", "Credit": 'sum'}).reset_index()
+                df = df.groupby(["Date","Voucher", "Account-2 Name", "Narration", 'Account-2 Pan No']).agg({"Debit": "sum", "Credit": 'sum'}).reset_index()
             if "statement" in file.lower():
                 #loading the statement of accounts finance format
                 df1 = pd.read_parquet(full_file_path, engine='pyarrow')
