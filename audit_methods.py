@@ -111,7 +111,7 @@ def purchase_vs_grn(srcFilePath:str, formatted_ledger):
         formatted_ledger: pandas dataframe which is the output of formatting function.
     """
     df_grn_report = pd.read_excel(srcFilePath)
-    df_grn_report.columns.values[5] = "PO"
+    df_grn_report.columns.values[3] = "PO"
     for key in ["GRN", "PO"]:
         df_grn_report[key] = df_grn_report[key].astype(str).str.strip()
     df_grn_unique = df_grn_report.drop_duplicates(subset=["GRN","PO"])
