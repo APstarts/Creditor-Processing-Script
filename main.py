@@ -14,7 +14,7 @@ po_reports = at.po_process(srcPath="../Purchase Order Reports/")
 purchase_vs_po = at.purchase_vs_po(po_reports=po_reports, formatted_ledger=formatted_ledger)
 
 #Performing the purchase vs GRN process
-purchase_vs_grn = at.purchase_vs_grn(srcFilePath="../GRN Reports/combined grn report.xlsx", formatted_ledger=formatted_ledger)
+purchase_vs_grn = at.purchase_vs_grn(srcFilePath="../GRN Reports/Revised Combined GRN Reports.xlsx", formatted_ledger=formatted_ledger)
 
 # Performing the purchase vs GSTR2A
 at.purchase_vs_gstr2a(gstr2ACombinedFile="../GSTR 2A/combined_2A.xlsx", formatted_ledger=formatted_ledger, outPath="../Creditor for goods/")

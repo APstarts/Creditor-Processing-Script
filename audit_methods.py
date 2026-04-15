@@ -24,7 +24,7 @@ def convert_to_partquet(ledger_path:str, outPath:str):
                 full_file_path = os.path.join(ledger_path, file)
                 df = pd.read_excel(full_file_path, nrows=12)
                 rows = df.astype(str).apply(lambda x: x.str.contains("date", case=False, na=False)).any(axis=1)
-                rows_to_skip = int(rows.idxmax()) + 3
+                rows_to_skip = int(rows.idxmax()) + 1
                 df = pd.read_excel(full_file_path, skiprows=rows_to_skip)
                 fileName = str(file).replace(".xlsx", "")
                 for col in ["Debit", "Credit"]:
